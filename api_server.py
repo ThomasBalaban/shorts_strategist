@@ -4,6 +4,7 @@ Deep-think reasoning for SimpleAutoSubs: titles, cut plans, effects,
 strategy memory, experiments, capability roadmap.
 Port: 9022  (sibling of SimpleAutoSubs:9020 and shorts_analyzer:9021)
 """
+import logging
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -22,6 +23,8 @@ import config  # noqa: E402
 from strategist import logs as strategist_logs  # noqa: E402
 strategist_logs.install()  # tee stdout/stderr early so we capture uvicorn boot logs
 from strategist import strategy, traces, think_title as think_title_mod  # noqa: E402
+from strategist import recommendations as recs_mod  # noqa: E402
+from strategist import thinker as thinker_mod  # noqa: E402
 from strategist.analyzer_client import AnalyzerClient  # noqa: E402
 
 
@@ -77,10 +80,43 @@ class RoadmapGapsRequest(BaseModel):
     capability_manifest: Dict[str, Any]
 
 
+class ThinkerForceRequest(BaseModel):
+    task_type: str
+    key: Optional[str] = None
+
+
 # ─── App lifecycle ────────────────────────────────────────────────────────────
+
+# UI polls these every few seconds — keep them out of the access log so the
+# console stays readable. Anything else (errors, mutations, real /think calls)
+# still logs normally.
+_QUIET_PREFIXES = (
+    "/thinker/status",
+    "/thinker/queue",
+    "/recommendations/",
+    "/health",
+    "/logs",
+    "/traces",
+)
+
+
+class _AccessLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # uvicorn.access record args: (client_addr, method, path, http_version, status)
+        args = record.args
+        if not isinstance(args, tuple) or len(args) < 5:
+            return True
+        path = str(args[2])
+        status = args[4]
+        # Always show non-2xx so failures aren't hidden.
+        if isinstance(status, int) and status >= 400:
+            return True
+        return not any(path.startswith(p) for p in _QUIET_PREFIXES)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.getLogger("uvicorn.access").addFilter(_AccessLogFilter())
     strategy.init_schema()
     print(f"✅ Shorts Strategist API ready on :{config.PORT}", flush=True)
     print(f"   Data dir:    {config.DATA_DIR}", flush=True)
@@ -196,6 +232,57 @@ def experiment_list(channel_handle: Optional[str] = None):
 @app.post("/roadmap/gaps")
 def roadmap_gaps(req: RoadmapGapsRequest):
     raise _not_implemented("/roadmap/gaps")
+
+
+# ─── /thinker/* ───────────────────────────────────────────────────────────────
+
+@app.get("/thinker/status")
+def thinker_status():
+    return thinker_mod.get().status()
+
+
+@app.post("/thinker/start")
+def thinker_start():
+    return thinker_mod.get().start()
+
+
+@app.post("/thinker/stop")
+def thinker_stop():
+    return thinker_mod.get().stop()
+
+
+@app.post("/thinker/force")
+def thinker_force(req: ThinkerForceRequest):
+    return thinker_mod.get().force(task_type=req.task_type, key=req.key)
+
+
+@app.get("/thinker/queue")
+def thinker_queue():
+    return {"tasks": thinker_mod.get().queue_snapshot()}
+
+
+# ─── /recommendations/* ───────────────────────────────────────────────────────
+
+@app.get("/recommendations/categories")
+def recommendations_categories():
+    return {"categories": list(recs_mod.CATEGORIES.keys())}
+
+
+@app.get("/recommendations/{category}")
+def recommendations_list(category: str):
+    if category not in recs_mod.CATEGORIES:
+        raise HTTPException(404, f"Unknown category: {category}")
+    return {"category": category, "items": recs_mod.list_category(category)}
+
+
+@app.get("/recommendations/{category}/{key}")
+def recommendations_read(category: str, key: str):
+    if category not in recs_mod.CATEGORIES:
+        raise HTTPException(404, f"Unknown category: {category}")
+    art = recs_mod.read(category, key)
+    if art is None:
+        raise HTTPException(404, f"Artifact not found: {category}/{key}")
+    return art
 
 
 # ─── /logs ────────────────────────────────────────────────────────────────────

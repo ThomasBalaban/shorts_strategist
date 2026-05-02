@@ -9,7 +9,13 @@
       "Skill(claude-api:*)",
       "Bash(/Users/thomasbalaban/miniconda3/envs/strategy2/bin/python -c ' *)",
       "Bash(curl -s 'http://localhost:9021/results')",
-      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" 'http://localhost:9021/results')"
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" 'http://localhost:9021/results')",
+      "Bash(python3 -c 'import json; d=json.load\\(open\\('\\\\''/Users/thomasbalaban/Downloads/projects/shorts_analyzer/output/__TRACKED_VAR__'\\\\''\\)\\); print\\(list\\(d.keys\\(\\)\\) if isinstance\\(d, dict\\) else f'\\\\''list len={len\\(d\\)}'\\\\''\\)')",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import os; print\\(os.path.dirname\\(os.path.dirname\\(os.path.abspath\\('/Users/thomasbalaban/Downloads/projects/shorts_strategist/api_server.py'\\)\\)\\)\\)\")",
+      "Bash(npx tsc *)",
+      "Skill(schedule)",
+      "Skill(schedule:*)"
     ]
   }
 }

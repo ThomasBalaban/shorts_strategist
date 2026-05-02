@@ -52,9 +52,26 @@ def _strip_code_fence(text: str) -> str:
     return t
 
 
+# Models occasionally emit typographic quotes inside JSON strings (e.g.
+# `"reasoning": "...overreach.”},{...next object..."`) — visually correct,
+# but it confuses the model itself into emitting structurally broken JSON
+# afterwards. We normalize these to ASCII before parsing so the model's
+# intent ("close the string and start the next object") still parses.
+_SMART_QUOTE_MAP = str.maketrans({
+    "“": '"',  # left double curly
+    "”": '"',  # right double curly
+    "‘": "'",  # left single curly
+    "’": "'",  # right single curly
+    "„": '"',  # double low-9
+    "‚": "'",  # single low-9
+})
+
+
 def parse_json_lenient(text: str) -> Any:
-    """Parse JSON from a model response, stripping code fences if present."""
-    return json.loads(_strip_code_fence(text))
+    """Parse JSON from a model response, stripping code fences and
+    normalizing typographic quotes that LLMs sometimes emit mid-string."""
+    cleaned = _strip_code_fence(text).translate(_SMART_QUOTE_MAP)
+    return json.loads(cleaned)
 
 
 # ── Gemini: generate titles ───────────────────────────────────────────────

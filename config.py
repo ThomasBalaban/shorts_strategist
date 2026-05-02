@@ -11,13 +11,29 @@ SUBTITLER_URL = os.environ.get("SIMPLEAUTOSUBS_URL", "http://localhost:9020")
 DATA_DIR = os.path.join(HERE, "data")
 TRACES_DIR = os.path.join(HERE, "traces")
 OUTPUT_DIR = os.path.join(HERE, "output")
+RECOMMENDATIONS_DIR = os.path.join(OUTPUT_DIR, "recommendations")
 
 STRATEGY_DB = os.path.join(DATA_DIR, "strategy.db")
+THINKER_STATE_FILE = os.path.join(DATA_DIR, "thinker_state.json")
+
+# Sibling project paths. Default layout assumes shorts_strategist,
+# shorts_analyzer, and SimpleAutoSubs are sibling directories of one parent.
+_SIBLING_ROOT = os.path.dirname(HERE)
+ANALYZER_OUTPUT_DIR = os.environ.get(
+    "SHORTS_ANALYZER_OUTPUT_DIR",
+    os.path.join(_SIBLING_ROOT, "shorts_analyzer", "output"),
+)
+SUBTITLER_SHORTS_DATA_DIR = os.environ.get(
+    "SIMPLEAUTOSUBS_SHORTS_DATA_DIR",
+    os.path.join(_SIBLING_ROOT, "SimpleAutoSubs", "shorts_data"),
+)
+
+CHANNEL_HANDLE = os.environ.get("STRATEGIST_CHANNEL_HANDLE", "PeepingOtter")
 
 GEMINI_MODEL_PRIMARY = os.environ.get("STRATEGIST_GEMINI_MODEL", "gemini-3-pro-preview")
 ANTHROPIC_MODEL_CRITIC = os.environ.get("STRATEGIST_CLAUDE_MODEL", "claude-opus-4-7")
 
-for d in (DATA_DIR, TRACES_DIR, OUTPUT_DIR):
+for d in (DATA_DIR, TRACES_DIR, OUTPUT_DIR, RECOMMENDATIONS_DIR):
     os.makedirs(d, exist_ok=True)
 
 
