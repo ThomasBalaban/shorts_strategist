@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import json; json.load\\(open\\('/Users/thomasbalaban/Downloads/projects/youtube_hub/proxy.conf.json'\\)\\); print\\('proxy.conf.json: valid JSON'\\)\")",
+      "Bash(npx ng *)",
+      "Bash(conda env *)",
+      "Bash(/Users/thomasbalaban/miniconda3/envs/strategy2/bin/pip install *)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(/Users/thomasbalaban/miniconda3/envs/strategy2/bin/python -c ' *)",
+      "Bash(curl -s 'http://localhost:9021/results')",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" 'http://localhost:9021/results')"
+    ]
+  }
+}
