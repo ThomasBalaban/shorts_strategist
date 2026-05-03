@@ -15,6 +15,7 @@ RECOMMENDATIONS_DIR = os.path.join(OUTPUT_DIR, "recommendations")
 
 STRATEGY_DB = os.path.join(DATA_DIR, "strategy.db")
 THINKER_STATE_FILE = os.path.join(DATA_DIR, "thinker_state.json")
+CAPABILITY_MANIFEST_PATH = os.path.join(DATA_DIR, "capability_manifest.json")
 
 # Sibling project paths. Default layout assumes shorts_strategist,
 # shorts_analyzer, and SimpleAutoSubs are sibling directories of one parent.
