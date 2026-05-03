@@ -15,5 +15,4 @@ output/*.md
 config.json
 output/recommendations/titles/shorts_metadata_*.json
 output/recommendations/channel/PeepingOtter.scorecard.json
-.gitignore
 output/recommendations/channel/PeepingOtter.title_patterns.json
