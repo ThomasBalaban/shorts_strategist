@@ -45,10 +45,11 @@ to `output/recommendations/`. Four product categories:
    (cinematography / onomatopoeia / retrim / subtitle) or signals
    which iteration to ship. SimpleAutoSubs owns the iteration counter
    (max 3) and enforces it; the strategist picks the best of the
-   iterations it has seen. *Strategist side shipped; runs in
-   advisory-only mode until SimpleAutoSubs ships the
-   `editorial_decisions` metadata extension. See "Pre-publish edit-review
-   feedback loop" below for the wire format.*
+   iterations it has seen. **Closed-loop end-to-end on both projects.**
+   On ship, SimpleAutoSubs renames the chosen iteration's file to its
+   canonical `output_filename` and deletes the others. See
+   "Pre-publish edit-review feedback loop" below for the wire format
+   and `output-contract.md` for the downstream consumer contract.
 
 4. **Channel-level scorecard** (`output/recommendations/channel/<handle>.scorecard.json`)
    — opinionated read of "what's working / what isn't / what to do next"
@@ -251,31 +252,41 @@ concerns:
   run). Consider gating to top + bottom quintile (~50). Skip entirely
   unless there's a use case the scorecard doesn't already cover.
 
-### Pre-publish edit-review feedback loop (in flight)
+### Pre-publish edit-review feedback loop — shipped
 
 `pre_publish_edit_review` is the strategist-side task that closes the
 edit feedback loop with SimpleAutoSubs. The strategist scores each
 iteration and either recommends edit directives (cinematography,
 onomatopoeia, retrim, subtitle) or signals which iteration to ship.
+SimpleAutoSubs's `IterationOrchestrator` (`core/iteration_loop.py`)
+drives up to 3 iterations per video, polls for the strategist's verdict
+between them, applies directives via a pre-baked replay path that skips
+the LLM phases on iteration 2+, and finalizes by renaming the chosen
+iteration's video file to its canonical name and deleting the others.
 
-**Wire format — `shorts_metadata_<n>.json` extension (SimpleAutoSubs writes):**
+**Wire format — `shorts_metadata_<n>.json` (SimpleAutoSubs writes):**
 
 ```json
 {
   "file_info": {
-    "iteration": 1,                       // current iteration; 1-based
-    "max_iterations": 3,                  // SimpleAutoSubs owns + enforces
+    "original_filename":  "Backtrack 2026-04-14 21-41-28.mkv",
+    "output_filename":    "Backtrack 2026-04-14 21-41-28-as-9.mp4",  // canonical, post-finalize
+    "iteration":          2,                  // current iteration (during loop) or shipped iteration (after finalize)
+    "max_iterations":     3,                  // SimpleAutoSubs owns + enforces
+    "shipped_iteration":  2,                  // present after finalize
+    "shipped_at":         "2026-05-04T14:23:11.041",
     "iteration_history": [
       {
-        "iteration": 1,
-        "output_filename": "...-v1.mp4",
-        "trigger": "initial_cut" | "strategist_directive_vN",
-        "editorial_decisions": { … }      // editorial decisions for this iteration
+        "iteration":            1,
+        "output_filename":      "...-v1.mp4",  // file no longer on disk after finalize
+        "trigger":              "initial_cut" | "strategist_directive_vN",
+        "editorial_decisions":  { … }           // each prior iteration's editorial state
       }
     ]
   },
-  "title": "…",
-  "title_analysis": { … },
+  "title":            "…",
+  "title_analysis":   { … },
+  "title_provenance": { … },
   "editorial_decisions": {
     "trim_segments_kept":   [[5.0, 12.5], [22.0, 30.0]],
     "trim_punch_point":     28.5,
@@ -312,52 +323,41 @@ onomatopoeia, retrim, subtitle) or signals which iteration to ship.
 ```
 
 **Iteration mechanics:** SimpleAutoSubs owns `iteration` and
-`max_iterations`. Each cut, it writes the metadata extension above. The
-strategist's task fires (hash changes when iteration changes), scores
-the current cut, and writes its directive file. SimpleAutoSubs polls
-the directive file:
+`max_iterations` and enforces the cap. Each cut, it writes metadata
+with the editorial_decisions for that iteration. The strategist's
+`pre_publish_edit_review` task fires when the metadata SHA changes,
+scores the cut, and writes its directive. The orchestrator hits
+`/thinker/force` after each metadata write to bump its specific task
+to the front of the strategist queue.
 
 - `verdict == "needs_edits"` AND `iteration < max_iterations`: apply
-  `edit_directives`, write a new `shorts_metadata_<n>.json` with
-  iteration+1, run cut, repeat.
+  `edit_directives` to the prior iteration's editorial state, run a
+  pre-baked replay (skip trim/director/onomatopoeia LLM phases, reuse
+  title), increment iteration, write fresh metadata.
 - `verdict == "ship_*"` OR `iteration >= max_iterations`: ship the
-  iteration named in `ship_which_iteration`. Stop the loop.
+  iteration named in `ship_which_iteration`. Move that iteration's file
+  to the canonical `output_filename`, delete every other iteration's
+  file, set `shipped_iteration` + `shipped_at` in metadata.
 
 The strategist enforces a ship-anyway rule when:
 - score >= 80 (good enough); OR
 - projected improvement <= 5 points (no leverage left); OR
 - iteration >= max_iterations (forced ship — picks best-scored seen).
 
-**Strategist-side: shipped.** The task runs in advisory-only mode
-when `editorial_decisions` is absent (pattern-level checklist) and
-switches to full review mode automatically once it shows up.
+**Toggle:** `SHORTS_STRATEGIST_ITERATION_LOOP=1` env var. Set
+permanently on `simple_auto_subs` and `simple_auto_subs_api` in
+`youtube_hub/service_defs.py`. The launcher merges per-service env into
+each subprocess. Diagnostic line in simpleautosubs's log:
+`iteration loop: ENABLED (env SHORTS_STRATEGIST_ITERATION_LOOP='1')`.
 
-**SimpleAutoSubs-side phase 1: shipped.** The metadata writer in
-`core/video_processor.py` now emits the full `editorial_decisions`
-block — trim segments (post-dialogue-extension), punch point + setup
-rationale, the AI Director's zoom timeline, and the full onomatopoeia
-event list — plus `file_info.iteration` (=1), `max_iterations` (=3),
-and an empty `iteration_history`. `IntelligentTrimmer` stashes its
-parsed JSON on `self.last_parsed_data` so the metadata writer can read
-the punch_point fields without changing the trimmer's return type.
+**Hub UI:** the global status ribbon (every page) shows a thinker pill
+(running/idle/stopped/error) with a queue-depth badge, plus a Start/Stop
+button and a "✕ Queue" button that calls `/thinker/clear-stale` to mark
+all stale non-forced tasks as `skipped_by_operator` without paying for
+their LLM calls. Useful for clearing a backlog accumulated while the
+thinker was off.
 
-**SimpleAutoSubs-side phase 2: not shipped.** Required for the loop
-to close end-to-end:
-1. Add a directive consumer that reads
-   `output/recommendations/edits/<base>.json` after each cut and
-   parses its `edit_directives`.
-2. On iteration > 1, skip the trim/director/onomatopoeia LLM phases
-   and instead render from the prior iteration's
-   `editorial_decisions` mutated by the directives. (Avoids the cost
-   of re-running expensive LLM analysis when the input hasn't changed
-   — only the editorial choices have.)
-3. Add an iteration orchestrator that loops `process_single_video`
-   up to `max_iterations` times, polling for fresh directives between
-   iterations and writing per-iteration metadata
-   (`shorts_metadata_<n>.json` updated each iteration with the new
-   iteration number + `iteration_history` populated).
-4. After iteration cap (or strategist `verdict=ship_*`), select the
-   indicated iteration's output as the final ship file.
+**Downstream consumer contract:** see `output-contract.md`.
 
 ### Cross-project wiring (the unlock points)
 
@@ -382,8 +382,9 @@ consume its output:
   eventually reconstruct the cut → outcome join (the dead Pillar 2 from
   the original gameplan, see below).
 
-- **simpleautosubs accepts re-edit directives** so `reedit_review`
-  becomes actionable instead of advisory.
+- ~~**simpleautosubs accepts re-edit directives**~~ — **shipped** as the
+  pre-publish edit-review loop above. Every pre-publish video can now
+  iterate up to 3 times based on strategist directives.
 
 ### Polish (the issues above, as concrete code changes)
 

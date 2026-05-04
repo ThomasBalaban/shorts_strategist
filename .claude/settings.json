@@ -18,7 +18,8 @@
       "Skill(schedule:*)",
       "Bash(curl -s http://localhost:9022/thinker/status)",
       "Bash(python3 -m json.tool)",
-      "Bash(curl -s http://localhost:9022/thinker/queue)"
+      "Bash(curl -s http://localhost:9022/thinker/queue)",
+      "Bash(grep -n 'Cross-project\\\\|simpleautosubs reads\\\\|`output/recommendations/titles' /Users/thomasbalaban/Downloads/projects/shorts_strategist/gameplan.md)"
     ],
     "additionalDirectories": [
       "/Users/thomasbalaban/Downloads/projects/SimpleAutoSubs/clip_editor",
