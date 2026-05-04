@@ -10,10 +10,12 @@ from . import title_pattern_retro
 from . import pre_publish_title
 from . import channel_scorecard
 from . import capability_gaps
+from . import pre_publish_edit_review
 
 REGISTRY = [
     title_pattern_retro,
     pre_publish_title,
     channel_scorecard,
     capability_gaps,
+    pre_publish_edit_review,
 ]

@@ -89,6 +89,57 @@ class Thinker:
         # Don't join under the lock; UI doesn't need to wait synchronously.
         return self.status()
 
+    def clear_stale(self) -> Dict[str, Any]:
+        """Mark every currently-stale non-forced task as 'skipped by operator'.
+
+        For each stale task, write a stub artifact whose ``input_hash`` matches
+        the current snapshot. Subsequent enumerations treat the task as
+        current and skip it. Forced tasks are NOT cleared — the force flag
+        bypasses the hash check anyway, so they still run on the next tick.
+
+        Use case: the thinker was off while many pre-publish videos were
+        processed; the operator wants to discard the backlog without paying
+        for LLM calls on the old material.
+        """
+        from . import recommendations as _recs  # local to avoid import cycle
+        snap = inputs_mod.take()
+        with self._lock:
+            forced_keys = set(self._forced)
+        wildcards = {tt for (tt, k) in forced_keys if k == "*"}
+
+        skipped: List[Dict[str, Any]] = []
+        examined = 0
+        for module in REGISTRY:
+            try:
+                tasks = module.enumerate_tasks(snap)
+            except Exception:
+                continue
+            for t in tasks:
+                examined += 1
+                if t.task_type in wildcards or t.id in forced_keys:
+                    continue
+                existing = _recs.existing_input_hash(t.category, t.key)
+                if existing == t.input_hash:
+                    continue
+                try:
+                    _recs.write(
+                        t.category, t.key,
+                        task_type=t.task_type,
+                        input_hash=t.input_hash,
+                        payload={
+                            "skipped_by_operator": True,
+                            "skipped_at": _now(),
+                            "task_type": t.task_type,
+                            "key": t.key,
+                            "note": "Stub artifact written by /thinker/clear-stale; "
+                                    "no LLM calls were made.",
+                        },
+                    )
+                    skipped.append({"task_type": t.task_type, "key": t.key})
+                except Exception:
+                    pass
+        return {"skipped": len(skipped), "examined": examined, "items": skipped}
+
     def force(self, task_type: str, key: Optional[str] = None) -> Dict[str, Any]:
         """Mark a specific task (or all tasks of a type) stale on next tick."""
         with self._lock:

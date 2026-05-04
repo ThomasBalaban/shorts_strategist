@@ -24,6 +24,7 @@ CATEGORIES: Dict[str, str] = {
     "titles":              "titles",
     "channel":             "channel",
     "capabilities":        "capabilities",
+    "edits":               "edits",
 }
 
 

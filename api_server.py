@@ -261,6 +261,11 @@ def thinker_queue():
     return {"tasks": thinker_mod.get().queue_snapshot()}
 
 
+@app.post("/thinker/clear-stale")
+def thinker_clear_stale():
+    return thinker_mod.get().clear_stale()
+
+
 # ─── /recommendations/* ───────────────────────────────────────────────────────
 
 @app.get("/recommendations/categories")

@@ -15,7 +15,15 @@
       "Bash(python3 -c \"import os; print\\(os.path.dirname\\(os.path.dirname\\(os.path.abspath\\('/Users/thomasbalaban/Downloads/projects/shorts_strategist/api_server.py'\\)\\)\\)\\)\")",
       "Bash(npx tsc *)",
       "Skill(schedule)",
-      "Skill(schedule:*)"
+      "Skill(schedule:*)",
+      "Bash(curl -s http://localhost:9022/thinker/status)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:9022/thinker/queue)"
+    ],
+    "additionalDirectories": [
+      "/Users/thomasbalaban/Downloads/projects/SimpleAutoSubs/clip_editor",
+      "/Users/thomasbalaban/Downloads/projects/SimpleAutoSubs/core",
+      "/Users/thomasbalaban/Downloads/projects/SimpleAutoSubs"
     ]
   }
 }
