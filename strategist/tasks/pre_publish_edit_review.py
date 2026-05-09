@@ -132,16 +132,54 @@ Your task:
    - channel_pattern_alignment: does it use winning patterns / avoid losing ones?
    - capability_use: is it leveraging the cinematography/onomatopoeia/cuts well?
    - punch_clarity: does the cut land its punch point cleanly?
+   - structural_coherence: does the cut hold together as a single watchable
+     beat, or does it stitch unrelated fragments? See STRUCTURAL RUBRIC
+     below — be ruthless here, viewers feel jump cuts even when they "serve
+     pacing".
 
-2. IDENTIFY CONCERNS — concrete things you'd change.
+   STRUCTURAL RUBRIC (look at trim_segments_kept and judge):
+     • **1 segment**: the gold standard. Score 90-100 unless the segment
+       itself is bloated.
+     • **2 segments, both ≥5s with clearly complementary roles**
+       (e.g. setup + payoff with a deliberate tonal pivot): 70-90.
+     • **2 segments where one is <5s** (an orphan opener tacked on for
+       context): 40-65 — the short opener almost always creates jarring
+       whiplash, propose a retrim that drops it.
+     • **3+ segments**: 20-50 by default. Only score higher if each segment
+       is ≥5s AND serves a distinct narrative beat AND the energy curve
+       through them is monotonically rising toward the punch. Multi-segment
+       cuts rarely earn this. Watch specifically for:
+         - Tonal whiplash (chaotic → calm → chaotic)
+         - Length disparity (5s + 5s + 21s — the openers don't earn their
+           cost; viewer engagement breaks at each cut)
+         - Diluted punch runway (every segment boundary before the punch
+           weakens the build)
+
+2. IDENTIFY CONCERNS — concrete things you'd change. If structural_coherence
+   is below 70, the FIRST concern must name the specific structural problem
+   (which segments to drop or merge, and why).
 
 3. PROPOSE EDIT DIRECTIVES (only if iteration < max_iterations AND you can name
    a SPECIFIC, IMPLEMENTABLE change worth trying). If the current iteration is
    good (>= {ship_threshold}) OR the achievable improvement is tiny
    (<= {min_improvement}), don't propose more edits — recommend ship instead.
 
+   For STRUCTURAL fixes, use the retrim directive: propose a
+   `new_segments_to_keep` that consolidates to fewer (ideally one) segments.
+   Drop short orphan openers. Prefer a single contiguous range covering
+   minimum setup + punch + immediate reaction over multi-segment stitching.
+
+   When you propose a retrim that drops or shifts segments, ALSO inspect
+   the existing zoom_timeline and onomatopoeia_events. Any event whose
+   timestamp falls outside the new structure (or no longer makes sense in
+   it) must be removed via cinematography_changes / onomatopoeia_changes
+   in the same directive bundle. Old events from the prior structure don't
+   silently follow the retrim — they get applied as-is unless you remove
+   them.
+
 Directive types you can propose (each must reference a specific timestamp):
-- retrim: change which segments are kept
+- retrim: change which segments are kept (also the structural fix lever —
+  consolidate orphan openers into the dominant segment, or drop them)
 - cinematography_changes: add/remove/replace zoom actions at specific times
 - onomatopoeia_changes: add/remove/move onomatopoeia events
 - subtitle_changes: rare; usually skip
@@ -152,7 +190,8 @@ Return ONLY this JSON:
   "score_breakdown":  {{
     "channel_pattern_alignment": <int>,
     "capability_use":            <int>,
-    "punch_clarity":             <int>
+    "punch_clarity":             <int>,
+    "structural_coherence":      <int>
   }},
   "concerns":         ["<one bullet per concern>"],
   "projected_improvement_if_iterated": <int 0-100>,
@@ -231,8 +270,17 @@ Your job is to challenge:
 4. PROJECTED improvement realism — if the score is already 78 and projected
    improvement is 25 points, that's overconfident. Push back.
 5. SHIP timing — has the iteration count been respected?
+6. STRUCTURAL coherence reality-check — pull `editorial_decisions.trim_segments_kept`
+   from the generator output and judge it independently. If the cut has 3+
+   segments OR any segment under 5s, the generator's `structural_coherence`
+   score should reflect that (≤65 typically). If it doesn't and there's no
+   retrim directive, the generator is asleep at the wheel — push back hard
+   in your critique and recommend a retrim. Stitched openers (short setup
+   segment before a much longer dominant segment) almost never serve the
+   viewer; they read as "I tried two openings, kept both."
 
-Be direct. If a directive is unactionable, drop it.
+Be direct. If a directive is unactionable, drop it. If a structural problem
+was missed, say so explicitly in `score_critique`.
 """
 
 
@@ -540,6 +588,27 @@ def _build_task(
         proj_improvement = generated.get("projected_improvement_if_iterated") or 0
         final_verdict = critique.get("final_recommended_verdict") or generated.get("verdict")
         final_ship_iter = critique.get("final_ship_which_iteration") or generated.get("ship_which_iteration")
+
+        # Structural override: if the cut is structurally weak we must not
+        # auto-ship just because other axes are strong. The point of the
+        # structural_coherence axis is to stop the strategist from rubber-
+        # stamping stitched-reaction openers that read as fine on paper but
+        # feel jarring to a viewer. Iteration cap still wins (line below).
+        structural_score = (
+            (generated.get("score_breakdown") or {}).get("structural_coherence")
+        )
+        STRUCTURAL_FLOOR = 60
+        if (
+            isinstance(structural_score, (int, float))
+            and structural_score < STRUCTURAL_FLOOR
+            and iteration < max_iterations
+            and final_verdict in ("ship_current", "ship_prior")
+        ):
+            final_verdict = "needs_edits"
+            traces.add_step(trace, "structural_floor_forced_iterate", {
+                "structural_coherence": structural_score,
+                "floor":                STRUCTURAL_FLOOR,
+            })
 
         # Apply hard rules even if the LLM disagrees:
         if iteration >= max_iterations and final_verdict == "needs_edits":
