@@ -6,11 +6,11 @@ per video**. That file is the only thing a downstream consumer
 
 ## Where to look
 
-Per video, SimpleAutoSubs writes:
+Per video, shorts-auto-editor writes:
 
 ```
-SimpleAutoSubs/shorts_data/shorts_metadata_<N>.json    ← one file per video
-SimpleAutoSubs/output/<canonical>.mp4                  ← the shipped video file
+shorts-auto-editor/shorts_data/shorts_metadata_<N>.json    ← one file per video
+shorts-auto-editor/output/<canonical>.mp4                  ← the shipped video file
 ```
 
 `<N>` is auto-incremented; one metadata file per video. The metadata
@@ -40,7 +40,7 @@ file is a single-element JSON list: `[{ ... }]`.
 
 ### To find the video file
 Read `file_info.output_filename`. Look for that name in
-`SimpleAutoSubs/output/`. Other paths referenced in
+`shorts-auto-editor/output/`. Other paths referenced in
 `iteration_history[*].output_filename` are **deleted on ship** —
 they're a record of what was tried, not pointers to live files.
 

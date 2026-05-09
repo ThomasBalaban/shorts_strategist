@@ -6,7 +6,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = 9022
 
 ANALYZER_URL = os.environ.get("SHORTS_ANALYZER_URL", "http://localhost:9021")
-SUBTITLER_URL = os.environ.get("SIMPLEAUTOSUBS_URL", "http://localhost:9020")
+SUBTITLER_URL = os.environ.get("SHORTS_AUTO_EDITOR_URL", "http://localhost:9020")
 
 DATA_DIR = os.path.join(HERE, "data")
 TRACES_DIR = os.path.join(HERE, "traces")
@@ -18,15 +18,15 @@ THINKER_STATE_FILE = os.path.join(DATA_DIR, "thinker_state.json")
 CAPABILITY_MANIFEST_PATH = os.path.join(DATA_DIR, "capability_manifest.json")
 
 # Sibling project paths. Default layout assumes shorts_strategist,
-# shorts_analyzer, and SimpleAutoSubs are sibling directories of one parent.
+# shorts_analyzer, and shorts-auto-editor are sibling directories of one parent.
 _SIBLING_ROOT = os.path.dirname(HERE)
 ANALYZER_OUTPUT_DIR = os.environ.get(
     "SHORTS_ANALYZER_OUTPUT_DIR",
     os.path.join(_SIBLING_ROOT, "shorts_analyzer", "output"),
 )
 SUBTITLER_SHORTS_DATA_DIR = os.environ.get(
-    "SIMPLEAUTOSUBS_SHORTS_DATA_DIR",
-    os.path.join(_SIBLING_ROOT, "SimpleAutoSubs", "shorts_data"),
+    "SHORTS_AUTO_EDITOR_SHORTS_DATA_DIR",
+    os.path.join(_SIBLING_ROOT, "shorts-auto-editor", "shorts_data"),
 )
 
 CHANNEL_HANDLE = os.environ.get("STRATEGIST_CHANNEL_HANDLE", "PeepingOtter")

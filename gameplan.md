@@ -5,7 +5,7 @@
 This project is the **deep-think reasoning service** for the YouTube
 shorts pipeline. It's a sibling of two existing projects:
 
-- `SimpleAutoSubs` (port 9020) — cuts raw screen recordings into finished
+- `shorts-auto-editor` (port 9020) — cuts raw screen recordings into finished
   YouTube Shorts with subtitles, animations, and onomatopoeia.
 - `shorts_analyzer` (port 9021) — studies a channel's *published* shorts
   with Gemini to figure out what works on a per-channel basis (synthesis
@@ -21,32 +21,32 @@ drift over time**. That's the gap this project fills.
 ## What this project produces
 
 The strategist runs a **continuous background thinker** that reads
-analyzer + simpleautosubs outputs and writes opinionated recommendations
+analyzer + shorts-auto-editor outputs and writes opinionated recommendations
 to `output/recommendations/`. Four product categories:
 
 1. **Pre-publish title recommendations** (`output/recommendations/titles/<base>.json`)
-   — for every clip simpleautosubs has already prepared but hasn't shipped,
+   — for every clip shorts-auto-editor has already prepared but hasn't shipped,
    verdict (keep / replace / tied) plus 5 ranked alternatives, each citing
    which channel patterns it uses.
 
-2. **Capability/editing ideas for simpleautosubs** (`output/recommendations/capabilities/<handle>.json`)
+2. **Capability/editing ideas for shorts-auto-editor** (`output/recommendations/capabilities/<handle>.json`)
    — short, opinionated build backlog (top 3, up to 5) of editing
-   capabilities that correlate with breakouts but simpleautosubs doesn't
+   capabilities that correlate with breakouts but shorts-auto-editor doesn't
    have. Each gap cites evidence (lift × n × avg breakout), proposes a
-   concrete simpleautosubs module to build it in, and includes an
+   concrete shorts-auto-editor module to build it in, and includes an
    experiment to validate. Also surfaces a "do NOT build" list of
    capabilities the data shows would hurt (PIP facecam, kinetic text on
    subtitles, etc).
 
 3. **Pre-publish edit review with iteration loop**
    (`output/recommendations/edits/<base>.json`) — for each pre-publish
-   clip, scores SimpleAutoSubs's cut against channel patterns + the
+   clip, scores shorts-auto-editor's cut against channel patterns + the
    capability manifest, and either recommends specific edit directives
    (cinematography / onomatopoeia / retrim / subtitle) or signals
-   which iteration to ship. SimpleAutoSubs owns the iteration counter
+   which iteration to ship. shorts-auto-editor owns the iteration counter
    (max 3) and enforces it; the strategist picks the best of the
    iterations it has seen. **Closed-loop end-to-end on both projects.**
-   On ship, SimpleAutoSubs renames the chosen iteration's file to its
+   On ship, shorts-auto-editor renames the chosen iteration's file to its
    canonical `output_filename` and deletes the others. See
    "Pre-publish edit-review feedback loop" below for the wire format
    and `output-contract.md` for the downstream consumer contract.
@@ -68,7 +68,7 @@ references.
 `strategist/thinker.py` runs a single background worker. On each tick:
 
 1. Build a snapshot of all inputs (`strategist/inputs.py`) — analyzer per-short,
-   tailwind, synthesis, context + simpleautosubs pre-publish files. Each
+   tailwind, synthesis, context + shorts-auto-editor pre-publish files. Each
    source is hashed (sha256) so changes are detectable.
 2. Enumerate every task module in `strategist/tasks/REGISTRY`, asking
    each to produce its task list given the snapshot.
@@ -122,7 +122,7 @@ strategist/
         pre_publish_edit_review.py     Per pre-publish file → score + edit directives + ship pick
 data/
     thinker_state.json                 Persisted thinker state (gitignored)
-    capability_manifest.json           Strategist-side fixture of what simpleautosubs can do
+    capability_manifest.json           Strategist-side fixture of what shorts-auto-editor can do
 output/recommendations/
     channel/<handle>.title_patterns.json
     channel/<handle>.scorecard.json
@@ -189,7 +189,7 @@ Each artifact opens into a **structured per-task-type renderer**:
   edit directives grouped by type (cinematography / onomatopoeia /
   retrim / subtitle) with timestamp + action callouts, iteration history
   with the best version highlighted. Falls back to a pattern-level
-  checklist when SimpleAutoSubs hasn't yet shipped editorial_decisions.
+  checklist when shorts-auto-editor hasn't yet shipped editorial_decisions.
 
 Every viewer has a **Raw JSON** toggle so the source artifact is always
 one click away. A **partial-critique** banner appears when the critic
@@ -239,7 +239,7 @@ concerns:
 
 - **`reedit_review`** — per published short. Takes the analyzer's per-video
   analysis + outcome data and proposes specific re-cuts / effect
-  additions. Advisory only until simpleautosubs accepts re-edit directives.
+  additions. Advisory only until shorts-auto-editor accepts re-edit directives.
   Cost: ~$0.50/short → gate to top + bottom quintiles only (~50 videos).
 
 - **`synthesis_critique`** — corpus task. Second pair of eyes on the
@@ -255,16 +255,16 @@ concerns:
 ### Pre-publish edit-review feedback loop — shipped
 
 `pre_publish_edit_review` is the strategist-side task that closes the
-edit feedback loop with SimpleAutoSubs. The strategist scores each
+edit feedback loop with shorts-auto-editor. The strategist scores each
 iteration and either recommends edit directives (cinematography,
 onomatopoeia, retrim, subtitle) or signals which iteration to ship.
-SimpleAutoSubs's `IterationOrchestrator` (`core/iteration_loop.py`)
+shorts-auto-editor's `IterationOrchestrator` (`core/iteration_loop.py`)
 drives up to 3 iterations per video, polls for the strategist's verdict
 between them, applies directives via a pre-baked replay path that skips
 the LLM phases on iteration 2+, and finalizes by renaming the chosen
 iteration's video file to its canonical name and deleting the others.
 
-**Wire format — `shorts_metadata_<n>.json` (SimpleAutoSubs writes):**
+**Wire format — `shorts_metadata_<n>.json` (shorts-auto-editor writes):**
 
 ```json
 {
@@ -272,7 +272,7 @@ iteration's video file to its canonical name and deleting the others.
     "original_filename":  "Backtrack 2026-04-14 21-41-28.mkv",
     "output_filename":    "Backtrack 2026-04-14 21-41-28-as-9.mp4",  // canonical, post-finalize
     "iteration":          2,                  // current iteration (during loop) or shipped iteration (after finalize)
-    "max_iterations":     3,                  // SimpleAutoSubs owns + enforces
+    "max_iterations":     3,                  // shorts-auto-editor owns + enforces
     "shipped_iteration":  2,                  // present after finalize
     "shipped_at":         "2026-05-04T14:23:11.041",
     "iteration_history": [
@@ -322,7 +322,7 @@ iteration's video file to its canonical name and deleting the others.
 }
 ```
 
-**Iteration mechanics:** SimpleAutoSubs owns `iteration` and
+**Iteration mechanics:** shorts-auto-editor owns `iteration` and
 `max_iterations` and enforces the cap. Each cut, it writes metadata
 with the editorial_decisions for that iteration. The strategist's
 `pre_publish_edit_review` task fires when the metadata SHA changes,
@@ -347,7 +347,7 @@ The strategist enforces a ship-anyway rule when:
 **Toggle:** `SHORTS_STRATEGIST_ITERATION_LOOP=1` env var. Set
 permanently on `simple_auto_subs` and `simple_auto_subs_api` in
 `youtube_hub/service_defs.py`. The launcher merges per-service env into
-each subprocess. Diagnostic line in simpleautosubs's log:
+each subprocess. Diagnostic line in shorts-auto-editor's log:
 `iteration loop: ENABLED (env SHORTS_STRATEGIST_ITERATION_LOOP='1')`.
 
 **Hub UI:** the global status ribbon (every page) shows a thinker pill
@@ -364,17 +364,17 @@ thinker was off.
 Most of the strategist's product value is *advisory* until siblings
 consume its output:
 
-- **simpleautosubs reads `output/recommendations/titles/<base>.json`**
+- **shorts-auto-editor reads `output/recommendations/titles/<base>.json`**
   before publish. This is what turns title recs from a hub UI tab into
   something that actually changes shipped titles. The title_provenance
   field in the existing `shorts_metadata_<n>.json` already has the
-  shape; we just need simpleautosubs to check the strategist's verdict
+  shape; we just need shorts-auto-editor to check the strategist's verdict
   + recommended_title before finalizing. **Highest-leverage remaining
   cross-project change.**
 
-- **simpleautosubs takes ownership of the capability manifest** and
+- **shorts-auto-editor takes ownership of the capability manifest** and
   publishes it via an endpoint. Today the strategist holds the manifest
-  as a fixture at `data/capability_manifest.json`. Once simpleautosubs
+  as a fixture at `data/capability_manifest.json`. Once shorts-auto-editor
   owns it, `capability_gaps` swaps where it reads from and the manifest
   stays in sync with the code automatically.
 
@@ -382,7 +382,7 @@ consume its output:
   eventually reconstruct the cut → outcome join (the dead Pillar 2 from
   the original gameplan, see below).
 
-- ~~**simpleautosubs accepts re-edit directives**~~ — **shipped** as the
+- ~~**shorts-auto-editor accepts re-edit directives**~~ — **shipped** as the
   pre-publish edit-review loop above. Every pre-publish video can now
   iterate up to 3 times based on strategist directives.
 
@@ -408,9 +408,9 @@ consume its output:
 ## On hold (the original Pillar 2)
 
 The original gameplan described a SQLite store at `data/strategy.db`
-joining simpleautosubs's edit decisions to shorts_analyzer's outcomes.
+joining shorts-auto-editor's edit decisions to shorts_analyzer's outcomes.
 That table exists in `strategist/strategy.py` but is empty and unused —
-it depends on `cut_id` flowing through simpleautosubs and the publisher,
+it depends on `cut_id` flowing through shorts-auto-editor and the publisher,
 which doesn't exist yet.
 
 The thinker architecture sidesteps this by reading analyzer outputs
@@ -427,7 +427,7 @@ when cut_id ships, or delete it.
 
 - **Never crash siblings.** Strategist calls degrade gracefully — if
   Gemini or Claude is unavailable the task records a skip reason rather
-  than crashing. Same posture simpleautosubs takes with the analyzer.
+  than crashing. Same posture shorts-auto-editor takes with the analyzer.
 - **No fallback titles.** If title generation fails, the title field is
   omitted; never invent placeholder text.
 - **Two models, not one.** Gemini for generation, Claude for critique.
@@ -446,20 +446,20 @@ when cut_id ships, or delete it.
   is `shorts_analyzer`'s job. The strategist *consumes* and *critiques*
   those files; it doesn't replace the analyzer's per-video Gemini pass.
 - **Cut execution** (FFmpeg, animations, subtitle embedding) is
-  simpleautosubs's job. The strategist returns *directives*; the
+  shorts-auto-editor's job. The strategist returns *directives*; the
   subtitler applies what it can.
 - **Publishing** is `youtube_shorts_publisher`'s job.
 - **Auto-running experiments.** The strategist *designs* experiments; it
-  does not unilaterally route simpleautosubs traffic into arms.
+  does not unilaterally route shorts-auto-editor traffic into arms.
 - **Thumbnail generation.**
 
 ## Done when
 
 The strategist is "complete enough to be load-bearing" when:
 
-1. simpleautosubs reads the strategist's title recommendation before
+1. shorts-auto-editor reads the strategist's title recommendation before
    publish and either uses it or records why it didn't.
-2. The capability_gaps artifact is read by a human (or by simpleautosubs's
+2. The capability_gaps artifact is read by a human (or by shorts-auto-editor's
    roadmap) often enough to drive feature work.
 3. The channel scorecard's headline + actions are concrete enough that
    the operator changes editing/title behavior in response, and the

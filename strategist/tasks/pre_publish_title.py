@@ -1,8 +1,8 @@
 """
 Per-pre-publish-clip title recommendation.
 
-For every ``SimpleAutoSubs/shorts_data/shorts_metadata_*.json`` on disk, emit
-a verdict on the title simpleautosubs already picked plus 5 ranked
+For every ``shorts-auto-editor/shorts_data/shorts_metadata_*.json`` on disk, emit
+a verdict on the title shorts-auto-editor already picked plus 5 ranked
 alternatives. Each alternative cites which channel patterns it uses.
 
 Depends on the ``title_pattern_retro`` artifact: that's where ``patterns_to_use``
@@ -30,7 +30,7 @@ CATEGORY = "titles"
 
 _GENERATE_PROMPT = """\
 You are recommending titles for a YouTube Shorts clip on @{handle}, before it
-goes live. SimpleAutoSubs has already picked a title; your job is to either
+goes live. shorts-auto-editor has already picked a title; your job is to either
 endorse it or propose better alternatives, grounded in the channel's
 demonstrated title-performance patterns.
 
@@ -43,7 +43,7 @@ PATTERNS THAT WORK (median breakout when present > 1.0):
 PATTERNS THAT FAIL (median breakout when present < 1.0):
 {patterns_to_avoid}
 
-CLIP CONTEXT (from SimpleAutoSubs's pre-publish metadata):
+CLIP CONTEXT (from shorts-auto-editor's pre-publish metadata):
 - Source file: {source_file}
 - Final duration: {duration}s
 - Current title: "{current_title}"
@@ -51,10 +51,10 @@ CLIP CONTEXT (from SimpleAutoSubs's pre-publish metadata):
 CLIP INTERPRETATION (what the clip is actually about):
 {clip_interpretation}
 
-WHY SIMPLEAUTOSUBS PICKED ITS CURRENT TITLE:
+WHY SHORTS_AUTO_EDITOR PICKED ITS CURRENT TITLE:
 {current_title_reasoning}
 
-PRIOR CANDIDATES SIMPLEAUTOSUBS CONSIDERED (and rejected):
+PRIOR CANDIDATES SHORTS_AUTO_EDITOR CONSIDERED (and rejected):
 {prior_candidates}
 
 Generate exactly 5 alternative titles ranked by expected performance on this

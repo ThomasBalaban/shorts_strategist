@@ -1,7 +1,7 @@
 """
-Capability-gap recommendations for SimpleAutoSubs.
+Capability-gap recommendations for shorts-auto-editor.
 
-Crosses the analyzer's per-tag breakout signals against the SimpleAutoSubs
+Crosses the analyzer's per-tag breakout signals against the shorts-auto-editor
 capability manifest. Output is the SHORT list — top 3 (up to 5 if there's a
 clear case) capabilities to consider building, ranked by leverage.
 
@@ -132,7 +132,7 @@ def _build_candidate_table(manifest: Dict[str, Any],
 
 
 def _summarize_manifest(manifest: Dict[str, Any]) -> str:
-    """Compact textual summary of what SimpleAutoSubs *can* do, fed to the
+    """Compact textual summary of what shorts-auto-editor *can* do, fed to the
     generator so its build proposals are grounded in the existing modules."""
     pc = manifest.get("production_capabilities") or {}
     lines = []
@@ -153,16 +153,16 @@ def _summarize_manifest(manifest: Dict[str, Any]) -> str:
 
 _GENERATE_PROMPT = """\
 You are recommending the SHORT LIST of editing capabilities to add to
-SimpleAutoSubs based on what the analyzer's data shows.
+shorts-auto-editor based on what the analyzer's data shows.
 
 CHANNEL: @{handle}
 N candidate gaps under review: {n_candidates}
 
-CURRENT SimpleAutoSubs CAPABILITIES (relevant excerpts):
+CURRENT shorts-auto-editor CAPABILITIES (relevant excerpts):
 {capability_summary}
 
 CANDIDATE GAPS (top {n_shown} by leverage_score = lift × n_in_top × avg_breakout_when_present;
-each tag is something SimpleAutoSubs's manifest reports as not_supported or partially_supported,
+each tag is something shorts-auto-editor's manifest reports as not_supported or partially_supported,
 and which the analyzer's data shows correlates with breakout performance):
 {candidate_table}
 
@@ -176,7 +176,7 @@ operator wants to build SLOWLY — a focused 3-item backlog beats a 10-item
 wishlist.
 
 For each chosen gap, propose:
-- A concrete build target: which SimpleAutoSubs module would house it, and
+- A concrete build target: which shorts-auto-editor module would house it, and
   what minimal primitive needs to exist
 - The evidence (cite the candidate-table numbers)
 - An experiment that would VALIDATE whether adding it actually moves the
@@ -193,7 +193,7 @@ Return JSON only, no prose, no code fences:
       "axis": "<from candidate row>",
       "tag":  "<from candidate row>",
       "build_proposal":         "<concrete target>",
-      "implementation_module":  "<simpleautosubs module path>",
+      "implementation_module":  "<shorts-auto-editor module path>",
       "rationale":              "<one or two sentences>",
       "evidence_cited":         {{"lift_top_vs_overall": <num>, "n_in_top": <int>, "avg_breakout_when_present": <num>}},
       "experiment_to_validate": "<one or two sentences, concrete>",

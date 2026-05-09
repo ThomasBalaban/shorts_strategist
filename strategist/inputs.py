@@ -11,7 +11,7 @@ Sources:
     2. shorts_analyzer/output/<handle>.tailwind.json   (per-video tailwind hypotheses)
     3. shorts_analyzer/output/<handle>.synthesis.json  (corpus narrative + stats)
     4. shorts_analyzer/output/<handle>.context.json    (channel baselines)
-    5. SimpleAutoSubs/shorts_data/shorts_metadata_*.json (pre-publish cuts)
+    5. shorts-auto-editor/shorts_data/shorts_metadata_*.json (pre-publish cuts)
 
 Each source either resolves to a SourceFile (mtime + sha256 + parsed body) or
 is reported as missing. A missing source is not fatal — tasks that depend on
@@ -80,7 +80,7 @@ class Snapshot:
         out: Dict[str, Dict[str, Any]] = {}
         for sf in self.pre_publish:
             body = sf.body
-            # Each file is a single-element list per simpleautosubs convention.
+            # Each file is a single-element list per shorts-auto-editor convention.
             record = body[0] if isinstance(body, list) and body else body
             if isinstance(record, dict):
                 out[sf.basename] = record

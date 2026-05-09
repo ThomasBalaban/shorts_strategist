@@ -1,13 +1,13 @@
 """
 Pre-publish edit review.
 
-Per pre-publish file in SimpleAutoSubs's shorts_data/, score the current cut
+Per pre-publish file in shorts-auto-editor's shorts_data/, score the current cut
 against the channel's learned patterns + the capability manifest, and either
 recommend specific edit directives (cinematography / onomatopoeia / retrim /
 subtitle) or pick a final iteration to ship.
 
 Iteration mechanics:
-- SimpleAutoSubs owns the iteration counter and enforces the max. The
+- shorts-auto-editor owns the iteration counter and enforces the max. The
   metadata's ``file_info.max_iterations`` tells the strategist how many
   attempts are allowed in total (typically 3).
 - Each iteration's editorial decisions live in
@@ -18,10 +18,10 @@ Iteration mechanics:
   emits directives (verdict=needs_edits). Otherwise it picks the best
   iteration seen so far (verdict=ship_*).
 
-Graceful fallback: when SimpleAutoSubs hasn't yet shipped the
+Graceful fallback: when shorts-auto-editor hasn't yet shipped the
 ``editorial_decisions`` field, the strategist falls back to a pattern-level
 checklist marked ``advisory_only=true`` so the operator can see the task is
-waiting on the simpleautosubs-side wire-format change.
+waiting on the shorts-auto-editor-side wire-format change.
 
 Ship threshold: score >= 80 OR projected improvement <= 5 points.
 """
@@ -94,7 +94,7 @@ def _summarize_manifest_for_edits(manifest: Dict[str, Any]) -> str:
 # ─── prompts ─────────────────────────────────────────────────────────────────
 
 _GENERATE_PROMPT_FULL = """\
-You are reviewing a pre-publish YouTube Shorts cut produced by SimpleAutoSubs
+You are reviewing a pre-publish YouTube Shorts cut produced by shorts-auto-editor
 for the channel @{handle}. Your job is to score it, identify concerns, and
 either recommend specific edit directives OR signal that it's good to ship.
 
@@ -110,11 +110,11 @@ title_patterns_to_avoid:
 synthesis_summary:
 {synthesis_summary}
 
-CAPABILITY MANIFEST (what SimpleAutoSubs CAN actually do — directives must
+CAPABILITY MANIFEST (what shorts-auto-editor CAN actually do — directives must
 stay inside this envelope):
 {capability_summary}
 
-CLIP CONTEXT (from SimpleAutoSubs's pre-publish metadata):
+CLIP CONTEXT (from shorts-auto-editor's pre-publish metadata):
 - Source file: {source_file}
 - Final duration: {final_duration}s (trimmed from {original_duration}s)
 - Current title: "{title}"
@@ -192,8 +192,8 @@ iteration number that scored highest.
 
 _GENERATE_PROMPT_ADVISORY = """\
 You are reviewing a pre-publish YouTube Shorts clip for @{handle}, but the
-SimpleAutoSubs metadata does NOT include editorial_decisions yet — meaning
-the simpleautosubs-side wire-format change to expose trim segments / zoom
+shorts-auto-editor metadata does NOT include editorial_decisions yet — meaning
+the shorts-auto-editor-side wire-format change to expose trim segments / zoom
 timeline / onomatopoeia events hasn't shipped. So you cannot score the cut
 itself; you can only do a pattern-level checklist based on what the clip is
 about.
@@ -415,7 +415,7 @@ def _build_task(
         # ── Advisory path: editorial_decisions missing ────────────────────
         if not has_editorial:
             traces.add_step(trace, "advisory_path", {
-                "reason": "editorial_decisions absent — simpleautosubs has not "
+                "reason": "editorial_decisions absent — shorts-auto-editor has not "
                           "yet shipped the wire-format change."
             })
             payload = _run_advisory(snap, sf, file_info, title, clip_interpretation,
@@ -659,7 +659,7 @@ def _run_advisory(snap: inputs_mod.Snapshot, sf: Any, file_info: Dict[str, Any],
         "verdict": "awaiting_editorial_data",
         "ship_which_iteration": None,
         "advisory_summary": (
-            "SimpleAutoSubs hasn't yet shipped editorial_decisions in metadata, "
+            "shorts-auto-editor hasn't yet shipped editorial_decisions in metadata, "
             "so this task can only run a pattern-level checklist. Once the "
             "metadata's editorial_decisions field exists, full scoring + "
             "directives become available automatically."

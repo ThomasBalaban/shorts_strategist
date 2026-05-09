@@ -1,8 +1,8 @@
 """
 Shorts Strategist API Server
-Deep-think reasoning for SimpleAutoSubs: titles, cut plans, effects,
+Deep-think reasoning for shorts-auto-editor: titles, cut plans, effects,
 strategy memory, experiments, capability roadmap.
-Port: 9022  (sibling of SimpleAutoSubs:9020 and shorts_analyzer:9021)
+Port: 9022  (sibling of shorts-auto-editor:9020 and shorts_analyzer:9021)
 """
 import logging
 import os
