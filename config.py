@@ -39,33 +39,20 @@ for d in (DATA_DIR, TRACES_DIR, OUTPUT_DIR, RECOMMENDATIONS_DIR):
 
 
 # ── API keys ──────────────────────────────────────────────────────────────
-# Load from config.json if present. Existing environment variables win — the
-# launcher or operator can override per-process without editing the file.
-# config.json shape: {"GEMINI_API_KEY": "...", "CLAUDE_API_KEY": "..."}
-_CONFIG_JSON = os.path.join(HERE, "config.json")
+# Keys come from the centralized youtube_hub/config/secrets.json. Existing
+# environment variables still win — the launcher or operator can override
+# per-process without editing the shared file.
+import sys as _sys
 
-# Map our config.json field names → the env vars the SDKs actually read.
-# Anthropic SDK reads ANTHROPIC_API_KEY; google-genai reads GEMINI_API_KEY
-# or GOOGLE_API_KEY.
-_KEY_MAP = {
-    "GEMINI_API_KEY": "GEMINI_API_KEY",
-    "CLAUDE_API_KEY": "ANTHROPIC_API_KEY",
-}
+_HUB_CONFIG = os.path.abspath(os.path.join(HERE, "..", "youtube_hub", "config"))
+if _HUB_CONFIG not in _sys.path:
+    _sys.path.insert(0, _HUB_CONFIG)
 
-
-def _load_config_json() -> None:
-    if not os.path.isfile(_CONFIG_JSON):
-        return
-    try:
-        with open(_CONFIG_JSON) as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        print(f"⚠️  Could not load {_CONFIG_JSON}: {e}", flush=True)
-        return
-    for src_key, env_var in _KEY_MAP.items():
-        val = data.get(src_key)
-        if val and not os.environ.get(env_var):
-            os.environ[env_var] = val
-
-
-_load_config_json()
+try:
+    from shared_secrets import export_to_env as _export_to_env
+    _export_to_env()
+except Exception as _e:
+    print(
+        f"⚠️  Could not load shared secrets from {_HUB_CONFIG}: {_e}",
+        flush=True,
+    )
