@@ -22,6 +22,7 @@ CATEGORIES: Dict[str, str] = {
     "postmortems":         "postmortems",
     "tailwind_critiques":  "tailwind_critiques",
     "titles":              "titles",
+    "metadata":            "metadata",
     "channel":             "channel",
     "capabilities":        "capabilities",
     "edits":               "edits",

@@ -120,6 +120,10 @@ CLIP CONTEXT (from shorts-auto-editor's pre-publish metadata):
 - Current title: "{title}"
 - Clip about: {clip_summary}
 
+NARRATIVE PLAN (what the pre-trim planner identified as essential — null if
+the planner was disabled or failed):
+{narrative_plan_json}
+
 CURRENT EDITORIAL DECISIONS (iteration {iteration}):
 {editorial_decisions_json}
 
@@ -132,56 +136,72 @@ Your task:
    - channel_pattern_alignment: does it use winning patterns / avoid losing ones?
    - capability_use: is it leveraging the cinematography/onomatopoeia/cuts well?
    - punch_clarity: does the cut land its punch point cleanly?
-   - structural_coherence: does the cut hold together as a single watchable
-     beat, or does it stitch unrelated fragments? See STRUCTURAL RUBRIC
-     below — be ruthless here, viewers feel jump cuts even when they "serve
-     pacing".
+   - moment_coverage: did the trim actually keep every must-keep moment from
+     narrative_plan? See MOMENT-COVERAGE RUBRIC below. If narrative_plan is
+     null, set this to null.
+   - structural_coherence: does the cut hold together as something watchable?
+     See STRUCTURAL RUBRIC. Multi-segment cuts get penalized — but NOT when
+     a short opener is the planner's hook moment (see rubric).
 
-   STRUCTURAL RUBRIC (look at trim_segments_kept and judge):
+   MOMENT-COVERAGE RUBRIC (compare must_keep_moments to trim_segments_kept):
+     • 100 = every must-keep moment is fully inside some kept segment
+     • Subtract 25 per moment dropped or partially missed
+     • A dropped HOOK moment is especially costly — subtract 35 instead.
+       The hook is what makes the viewer keep watching.
+     • If the planner returned hook_status="absent" with a reasonable
+       hook_status_reason, the cut having no hook segment is NOT a
+       moment-coverage problem — score normally.
+     • A trim that adds segments NOT in must_keep_moments is fine; the
+       planner's list is a floor, not a ceiling. The trimmer can include
+       supporting context as long as it kept everything required.
+
+   STRUCTURAL RUBRIC (look at trim_segments_kept):
      • **1 segment**: the gold standard. Score 90-100 unless the segment
        itself is bloated.
      • **2 segments, both ≥5s with clearly complementary roles**
-       (e.g. setup + payoff with a deliberate tonal pivot): 70-90.
-     • **2 segments where one is <5s** (an orphan opener tacked on for
-       context): 40-65 — the short opener almost always creates jarring
-       whiplash, propose a retrim that drops it.
-     • **3+ segments**: 20-50 by default. Only score higher if each segment
-       is ≥5s AND serves a distinct narrative beat AND the energy curve
-       through them is monotonically rising toward the punch. Multi-segment
-       cuts rarely earn this. Watch specifically for:
-         - Tonal whiplash (chaotic → calm → chaotic)
-         - Length disparity (5s + 5s + 21s — the openers don't earn their
-           cost; viewer engagement breaks at each cut)
-         - Diluted punch runway (every segment boundary before the punch
-           weakens the build)
+       (e.g. hook + payoff with a deliberate tonal pivot): 70-90.
+     • **2 segments where one is <5s — and that short segment overlaps a
+       must-keep moment** (especially a hook): 70-90. This is a deliberate
+       structural choice, not an orphan opener; the short segment exists
+       because the planner identified that range as essential.
+     • **2 segments where one is <5s — and that short segment does NOT
+       cover any must-keep moment**: 40-65 — true orphan opener; propose a
+       retrim that drops or merges it.
+     • **3+ segments**: 30-70 by default. Score higher when each segment
+       covers at least one must-keep moment. Score lower when segments
+       exist for vague "context" reasons not justified by the plan.
 
-2. IDENTIFY CONCERNS — concrete things you'd change. If structural_coherence
-   is below 70, the FIRST concern must name the specific structural problem
-   (which segments to drop or merge, and why).
+2. IDENTIFY CONCERNS — concrete things you'd change. The first concern
+   should be the worst issue: missed must-keep moments outrank structural
+   issues outrank capability gaps.
 
-3. PROPOSE EDIT DIRECTIVES (only if iteration < max_iterations AND you can name
-   a SPECIFIC, IMPLEMENTABLE change worth trying). If the current iteration is
-   good (>= {ship_threshold}) OR the achievable improvement is tiny
-   (<= {min_improvement}), don't propose more edits — recommend ship instead.
+3. PROPOSE EDIT DIRECTIVES (only if iteration < max_iterations AND you can
+   name a SPECIFIC, IMPLEMENTABLE change worth trying). If the current
+   iteration is good (>= {ship_threshold}) OR the achievable improvement is
+   tiny (<= {min_improvement}), don't propose more edits — recommend ship.
 
-   For STRUCTURAL fixes, use the retrim directive: propose a
-   `new_segments_to_keep` that consolidates to fewer (ideally one) segments.
-   Drop short orphan openers. Prefer a single contiguous range covering
-   minimum setup + punch + immediate reaction over multi-segment stitching.
+   When the trim DROPPED a must-keep moment, the right fix is almost always
+   a retrim that re-includes it (extending an existing segment or adding a
+   new segment covering the moment).
+
+   When the narrative_plan ITSELF is wrong (the planner missed an obvious
+   moment, picked a weak hook, or marked something essential that isn't),
+   use a replan_anchors directive to surgically correct it. The next
+   iteration's review will see the corrected plan.
 
    When you propose a retrim that drops or shifts segments, ALSO inspect
    the existing zoom_timeline and onomatopoeia_events. Any event whose
    timestamp falls outside the new structure (or no longer makes sense in
    it) must be removed via cinematography_changes / onomatopoeia_changes
-   in the same directive bundle. Old events from the prior structure don't
-   silently follow the retrim — they get applied as-is unless you remove
-   them.
+   in the same directive bundle.
 
 Directive types you can propose (each must reference a specific timestamp):
-- retrim: change which segments are kept (also the structural fix lever —
-  consolidate orphan openers into the dominant segment, or drop them)
+- retrim: change which segments are kept
 - cinematography_changes: add/remove/replace zoom actions at specific times
 - onomatopoeia_changes: add/remove/move onomatopoeia events
+- replan_anchors: surgical edits to the narrative plan's must-keep moments
+  (and the hook). Use this when the plan itself was off, not when the cut
+  failed to honour a correct plan (use retrim for that).
 - subtitle_changes: rare; usually skip
 
 Return ONLY this JSON:
@@ -191,6 +211,7 @@ Return ONLY this JSON:
     "channel_pattern_alignment": <int>,
     "capability_use":            <int>,
     "punch_clarity":             <int>,
+    "moment_coverage":           <int|null>,
     "structural_coherence":      <int>
   }},
   "concerns":         ["<one bullet per concern>"],
@@ -219,6 +240,21 @@ Return ONLY this JSON:
         "intensity": <0..1> | null,
         "reason":    "<one sentence>"}}
     ],
+    "replan_anchors": {{
+      "operations": [
+        {{"type": "add",
+          "kind": "hook"|"laugh"|"jumpscare"|"tension_peak"|"reveal"|"kill"|"reaction"|"win"|"other",
+          "start": <seconds>, "end": <seconds>,
+          "rationale": "<one sentence>"}},
+        {{"type": "remove",  "at_time": <seconds>, "reason": "<one sentence>"}},
+        {{"type": "replace", "at_time": <seconds>,
+          "kind": "<new kind>", "start": <seconds>, "end": <seconds>,
+          "rationale": "<one sentence>"}},
+        {{"type": "set_hook",   "start": <seconds>, "end": <seconds>,
+          "rationale": "<one sentence>", "reason": "<why this is the hook>"}},
+        {{"type": "clear_hook", "reason": "<why no hook>"}}
+      ]
+    }},
     "subtitle_changes": []
   }},
   "review_summary": "<one paragraph: what the reviewer thinks of this iteration overall>"
@@ -270,17 +306,22 @@ Your job is to challenge:
 4. PROJECTED improvement realism — if the score is already 78 and projected
    improvement is 25 points, that's overconfident. Push back.
 5. SHIP timing — has the iteration count been respected?
-6. STRUCTURAL coherence reality-check — pull `editorial_decisions.trim_segments_kept`
-   from the generator output and judge it independently. If the cut has 3+
-   segments OR any segment under 5s, the generator's `structural_coherence`
-   score should reflect that (≤65 typically). If it doesn't and there's no
-   retrim directive, the generator is asleep at the wheel — push back hard
-   in your critique and recommend a retrim. Stitched openers (short setup
-   segment before a much longer dominant segment) almost never serve the
-   viewer; they read as "I tried two openings, kept both."
+6. MOMENT-COVERAGE reality-check — when narrative_plan exists, every
+   must_keep_moment must be inside some kept segment. Compare
+   ``editorial_decisions.narrative_plan.must_keep_moments`` against
+   ``trim_segments_kept`` independently. If a must-keep moment was
+   dropped and the generator didn't propose either a retrim that
+   restores it OR a replan_anchors directive that justifies removing it
+   from the plan, the generator is asleep — push back hard.
+7. STRUCTURAL coherence reality-check — pull
+   ``editorial_decisions.trim_segments_kept`` and judge it independently.
+   3+ segments or any sub-5s segment usually indicates a structural
+   issue, BUT NOT ALWAYS: a sub-5s segment whose range overlaps a
+   must-keep hook moment is a deliberate choice, not an orphan. Don't
+   flag it as orphan.
 
-Be direct. If a directive is unactionable, drop it. If a structural problem
-was missed, say so explicitly in `score_critique`.
+Be direct. If a directive is unactionable, drop it. If a coverage or
+structural problem was missed, say so explicitly in `score_critique`.
 """
 
 
@@ -497,6 +538,10 @@ def _build_task(
         else:
             try:
                 client = llm.get_genai()
+                narrative_plan_value = (
+                    editorial.get("narrative_plan")
+                    if isinstance(editorial, dict) else None
+                )
                 prompt = _GENERATE_PROMPT_FULL.format(
                     handle=snap.channel_handle,
                     iteration=iteration,
@@ -511,6 +556,10 @@ def _build_task(
                     original_duration=file_info.get("original_duration", "?"),
                     title=title,
                     clip_summary=clip_summary,
+                    narrative_plan_json=(
+                        json.dumps(narrative_plan_value, indent=2)[:3000]
+                        if narrative_plan_value else "null"
+                    ),
                     editorial_decisions_json=json.dumps(editorial, indent=2)[:3500],
                     prior_iterations_json=json.dumps(prior_seen, indent=2)[:2500],
                     ship_threshold=SHIP_SCORE_THRESHOLD,
@@ -589,25 +638,50 @@ def _build_task(
         final_verdict = critique.get("final_recommended_verdict") or generated.get("verdict")
         final_ship_iter = critique.get("final_ship_which_iteration") or generated.get("ship_which_iteration")
 
-        # Structural override: if the cut is structurally weak we must not
-        # auto-ship just because other axes are strong. The point of the
-        # structural_coherence axis is to stop the strategist from rubber-
-        # stamping stitched-reaction openers that read as fine on paper but
-        # feel jarring to a viewer. Iteration cap still wins (line below).
-        structural_score = (
-            (generated.get("score_breakdown") or {}).get("structural_coherence")
-        )
+        # Structural override: weak structural_coherence forces another
+        # iteration UNLESS the "structural problem" is actually a hook
+        # anchor the planner intentionally protected. We only block ship
+        # when the structural weakness is real AND moment_coverage is
+        # also a problem (no point iterating to "fix" a deliberate
+        # choice). Iteration cap still wins (block below).
+        breakdown = generated.get("score_breakdown") or {}
+        structural_score = breakdown.get("structural_coherence")
+        coverage_score = breakdown.get("moment_coverage")
         STRUCTURAL_FLOOR = 60
+        COVERAGE_FLOOR = 75
+        coverage_is_fine = (
+            coverage_score is None
+            or (isinstance(coverage_score, (int, float))
+                and coverage_score >= COVERAGE_FLOOR)
+        )
         if (
             isinstance(structural_score, (int, float))
             and structural_score < STRUCTURAL_FLOOR
+            and not coverage_is_fine
             and iteration < max_iterations
             and final_verdict in ("ship_current", "ship_prior")
         ):
             final_verdict = "needs_edits"
             traces.add_step(trace, "structural_floor_forced_iterate", {
                 "structural_coherence": structural_score,
-                "floor":                STRUCTURAL_FLOOR,
+                "moment_coverage":      coverage_score,
+                "structural_floor":     STRUCTURAL_FLOOR,
+                "coverage_floor":       COVERAGE_FLOOR,
+            })
+
+        # Coverage override: a missed must-keep moment is the worst kind
+        # of error — don't ship if any moment was dropped, even if every
+        # other axis is strong.
+        if (
+            isinstance(coverage_score, (int, float))
+            and coverage_score < COVERAGE_FLOOR
+            and iteration < max_iterations
+            and final_verdict in ("ship_current", "ship_prior")
+        ):
+            final_verdict = "needs_edits"
+            traces.add_step(trace, "coverage_floor_forced_iterate", {
+                "moment_coverage": coverage_score,
+                "floor":           COVERAGE_FLOOR,
             })
 
         # Apply hard rules even if the LLM disagrees:
