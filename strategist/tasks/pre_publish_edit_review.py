@@ -195,6 +195,15 @@ Your task:
    it) must be removed via cinematography_changes / onomatopoeia_changes
    in the same directive bundle.
 
+   CAMERA-GAZE CONSTRAINT: cam zoom-ins (zoom_to_cam / zoom_to_cam_reaction)
+   only render when the on-camera avatar's face is visible and looking toward
+   the viewer. The editor automatically drops any cam zoom where the avatar is
+   bugged, obscured, or looking away — you can see this in the zoom_timeline
+   reasons as a `gaze=` tag (e.g. `gaze=0.10` means not camera-ready, `gaze=1.00`
+   means good). Do NOT add or replace-to a cam zoom at a timestamp where the
+   avatar is unlikely to be camera-ready; a cam zoom you add there will simply
+   be dropped, wasting the moment — prefer a game zoom or leave it alone.
+
 Directive types you can propose (each must reference a specific timestamp):
 - retrim: change which segments are kept
 - cinematography_changes: add/remove/replace zoom actions at specific times
