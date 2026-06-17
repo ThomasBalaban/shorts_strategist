@@ -31,8 +31,11 @@ SUBTITLER_SHORTS_DATA_DIR = os.environ.get(
 
 CHANNEL_HANDLE = os.environ.get("STRATEGIST_CHANNEL_HANDLE", "PeepingOtter")
 
-GEMINI_MODEL_PRIMARY = os.environ.get("STRATEGIST_GEMINI_MODEL", "gemini-3-pro-preview")
-ANTHROPIC_MODEL_CRITIC = os.environ.get("STRATEGIST_CLAUDE_MODEL", "claude-opus-4-7")
+# gemini-3-pro-preview was deprecated by Google (404 NOT_FOUND), which
+# silently broke every strategist generation. Matches the editor's working
+# model id (shorts-auto-editor/utils/models.py MODEL_PRO).
+GEMINI_MODEL_PRIMARY = os.environ.get("STRATEGIST_GEMINI_MODEL", "gemini-3.1-pro-preview")
+ANTHROPIC_MODEL_CRITIC = os.environ.get("STRATEGIST_CLAUDE_MODEL", "claude-opus-4-8")
 
 for d in (DATA_DIR, TRACES_DIR, OUTPUT_DIR, RECOMMENDATIONS_DIR):
     os.makedirs(d, exist_ok=True)
