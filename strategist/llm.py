@@ -67,10 +67,42 @@ _SMART_QUOTE_MAP = str.maketrans({
 })
 
 
+# Models occasionally encode a supplementary-plane emoji as a MALFORMED
+# escape behind a ``\u`` prefix, in one of two forms seen in the wild:
+#   • decimal codepoint — 💀 (U+1F480, decimal 128128) → "ኁ28"
+#   • 5–6 hex codepoint — 🤣 (U+1F923)               → "ᾒ3"
+# Both are still *valid* JSON (``\u`` consumes exactly four hex digits), so
+# ``json.loads`` silently mis-decodes them into garbage. We rewrite a ``\u``
+# followed by 5–6 digits to the emoji it encodes when read as a hex *or*
+# decimal codepoint landing in the emoji planes, before parsing. Guarding to
+# the emoji range (not the whole supplementary space) keeps the repair from
+# misfiring on a legit four-hex escape followed by a digit (e.g. "—1").
+# Genuine four-hex escapes and surrogate pairs (4 digits each) never match.
+_MALFORMED_SUPPLEMENTARY_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{5,6})")
+_EMOJI_LO, _EMOJI_HI = 0x1F000, 0x1FAFF
+
+
+def _repair_malformed_unicode_escapes(text: str) -> str:
+    def _sub(m: "re.Match[str]") -> str:
+        digits = m.group(1)
+        for base in (16, 10):  # hex first (ᾒ3), then decimal (ኁ28)
+            try:
+                cp = int(digits, base)
+            except ValueError:
+                continue
+            if _EMOJI_LO <= cp <= _EMOJI_HI:
+                return chr(cp)
+        return m.group(0)
+
+    return _MALFORMED_SUPPLEMENTARY_ESCAPE.sub(_sub, text)
+
+
 def parse_json_lenient(text: str) -> Any:
-    """Parse JSON from a model response, stripping code fences and
-    normalizing typographic quotes that LLMs sometimes emit mid-string."""
+    """Parse JSON from a model response, stripping code fences, repairing
+    malformed decimal emoji escapes, and normalizing typographic quotes that
+    LLMs sometimes emit mid-string."""
     cleaned = _strip_code_fence(text).translate(_SMART_QUOTE_MAP)
+    cleaned = _repair_malformed_unicode_escapes(cleaned)
     return json.loads(cleaned)
 
 
