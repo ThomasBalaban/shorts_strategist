@@ -12,8 +12,10 @@ from . import pre_publish_metadata
 from . import channel_scorecard
 from . import capability_gaps
 from . import pre_publish_edit_review
+from . import outcome_sync
 
 REGISTRY = [
+    outcome_sync,          # free (no LLM) — keep the join table fresh first
     title_pattern_retro,
     pre_publish_title,
     pre_publish_metadata,
