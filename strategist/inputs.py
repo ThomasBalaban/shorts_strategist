@@ -115,7 +115,14 @@ def _read_json_file(path: str) -> Optional[SourceFile]:
     with open(path, "rb") as f:
         raw = f.read()
     sha = hashlib.sha256(raw).hexdigest()
-    body = json.loads(raw.decode("utf-8"))
+    try:
+        body = json.loads(raw.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        # A torn/partial write must skip this one file, not crash the
+        # snapshot and stop the thinker loop. (The editor now writes
+        # atomically, but this side stays defensive regardless.)
+        print(f"[inputs] skipping unreadable {path}: {e}", flush=True)
+        return None
     return SourceFile(path=path, mtime=os.path.getmtime(path), sha256=sha, body=body)
 
 

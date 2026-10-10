@@ -647,6 +647,17 @@ def _build_task(
         final_verdict = critique.get("final_recommended_verdict") or generated.get("verdict")
         final_ship_iter = critique.get("final_ship_which_iteration") or generated.get("ship_which_iteration")
 
+        # LLM-failure safety: with no usable verdict, default to SHIPPING,
+        # not to needs_edits — empty directives just re-render an identical
+        # video and burn an iteration (live evidence: shorts_metadata_48
+        # iterations 1 and 2 were byte-identical).
+        if final_verdict not in ("needs_edits", "ship_current", "ship_prior"):
+            traces.add_step(trace, "llm_failure_default_ship", {
+                "gen_skip": gen_skip, "crit_skip": crit_skip,
+                "raw_verdict": final_verdict,
+            })
+            final_verdict = "ship_current"
+
         # Structural override: weak structural_coherence forces another
         # iteration UNLESS the "structural problem" is actually a hook
         # anchor the planner intentionally protected. We only block ship
@@ -748,7 +759,7 @@ def _build_task(
             "source_metadata":         sf.basename,
             "iteration_reviewed":      iteration,
             "max_iterations_known":    max_iterations,
-            "verdict":                 final_verdict or "needs_edits",
+            "verdict":                 final_verdict,
             "ship_which_iteration":    ship_iter_value,
             "current_score":           score,
             "score_breakdown":         generated.get("score_breakdown"),
