@@ -21,6 +21,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from .. import inputs as inputs_mod
 from .. import llm
 from .. import recommendations
+from .. import strategy
 from .. import traces
 from . import title_pattern_retro
 from .base import Task
@@ -449,6 +450,8 @@ def enumerate_tasks(snap: inputs_mod.Snapshot) -> List[Task]:
         "tailwind":  snap.tailwind.sha256  if snap.tailwind  else "",
         "context":   snap.context.sha256   if snap.context   else "",
         "patterns":  patterns_hash,
+        # New experiment conclusions re-derive the scorecard (Phase 5.2).
+        "experiments": strategy.concluded_digest(snap.channel_handle)[0],
     })
     key = f"{snap.channel_handle}.scorecard"
 
@@ -507,7 +510,9 @@ def enumerate_tasks(snap: inputs_mod.Snapshot) -> List[Task]:
                     patterns_to_avoid=json.dumps(patterns_to_avoid, indent=2, ensure_ascii=False)[:2500],
                     recent_titles=json.dumps(rtitles, indent=2, ensure_ascii=False),
                     recent_n=RECENT_N,
-                    synthesis_summary=_summarize_synthesis_narrative(synthesis),
+                    synthesis_summary=(
+                        _summarize_synthesis_narrative(synthesis)
+                        + strategy.concluded_digest(snap.channel_handle)[1]),
                 )
                 resp = client.models.generate_content(
                     model=config.GEMINI_MODEL_PRIMARY,

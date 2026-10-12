@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 from .. import inputs as inputs_mod
 from .. import llm
 from .. import recommendations
+from .. import strategy
 from .. import traces
 from .base import Task
 
@@ -216,6 +217,8 @@ def enumerate_tasks(snap: inputs_mod.Snapshot) -> List[Task]:
     input_hash = inputs_mod.hash_inputs({
         "per_short": snap.per_short.sha256,
         "synthesis": snap.synthesis.sha256 if snap.synthesis else "",
+        # New experiment conclusions re-derive the patterns (Phase 5.2).
+        "experiments": strategy.concluded_digest(snap.channel_handle)[0],
     })
     key = f"{snap.channel_handle}.title_patterns"
 
@@ -244,11 +247,12 @@ def enumerate_tasks(snap: inputs_mod.Snapshot) -> List[Task]:
             try:
                 client = llm.get_genai()
                 import config  # local import keeps module-load cheap
+                _, exp_block = strategy.concluded_digest(snap.channel_handle)
                 prompt = _GENERATE_PROMPT.format(
                     handle=snap.channel_handle,
                     n=len(shorts),
                     median=median,
-                    synthesis_summary=synthesis_summary,
+                    synthesis_summary=synthesis_summary + exp_block,
                     title_list=title_list,
                 )
                 resp = client.models.generate_content(

@@ -14,9 +14,11 @@ from . import capability_gaps
 from . import pre_publish_edit_review
 from . import outcome_sync
 from . import batch_experiment_assignment
+from . import experiment_evaluation
 
 REGISTRY = [
     outcome_sync,          # free (no LLM) — keep the join table fresh first
+    experiment_evaluation,  # scores ripe experiments (depends on outcome_sync)
     title_pattern_retro,
     pre_publish_title,
     pre_publish_metadata,

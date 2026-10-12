@@ -122,6 +122,68 @@ def save_experiment(experiment_id: str, channel_handle: str, hypothesis: str,
         )
 
 
+def concluded_digest(channel_handle: str) -> tuple:
+    """(hash_component, prompt_block) summarizing concluded experiments.
+
+    Fed into title_pattern_retro and channel_scorecard (Phase 5.2): the
+    hash component re-stales them when new conclusions land, and the
+    prompt block tells the generator that pre-registered causal results
+    outrank correlational patterns.
+    """
+    try:
+        rows = [e for e in list_experiments(channel_handle)
+                if str(e.get("status", "")).startswith("concluded")]
+    except Exception:
+        return "", ""
+    if not rows:
+        return "", ""
+    compact = [{"experiment_id": e["experiment_id"],
+                "hypothesis": e["hypothesis"],
+                "conclusion": e["conclusion"]} for e in rows]
+    blob = json.dumps(compact, sort_keys=True, ensure_ascii=False)
+    block = (
+        "\n\nCONCLUDED EXPERIMENTS (pre-registered causal evidence from this "
+        "channel's own ledger — this OUTRANKS correlational patterns: promote "
+        "confirmed wins, demote refuted patterns even when the correlation "
+        "persists):\n" + blob
+    )
+    return blob, block
+
+
+def conclude_experiment(experiment_id: str, conclusion: str,
+                        status: str = "concluded") -> None:
+    """Write the verdict onto an existing ledger row.
+
+    The ledger is append-only memory: rows are never deleted, and a
+    concluded row is the thinker's accumulated understanding.
+    """
+    with _conn() as c:
+        c.execute(
+            "UPDATE experiments SET status = ?, conclusion = ? "
+            "WHERE experiment_id = ?",
+            (status, conclusion, experiment_id),
+        )
+
+
+def outcomes_for_video_ids(video_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """{video_id: {breakout_score, raw}} for the given ids (missing ids
+    are simply absent from the result)."""
+    if not video_ids:
+        return {}
+    out: Dict[str, Dict[str, Any]] = {}
+    with _conn() as c:
+        marks = ",".join("?" for _ in video_ids)
+        rows = c.execute(
+            f"SELECT video_id, breakout_score, raw FROM outcomes "
+            f"WHERE video_id IN ({marks})", list(video_ids)).fetchall()
+    for r in rows:
+        out[r["video_id"]] = {
+            "breakout_score": r["breakout_score"],
+            "raw": json.loads(r["raw"]) if r["raw"] else {},
+        }
+    return out
+
+
 def list_experiments(channel_handle: Optional[str] = None) -> List[Dict[str, Any]]:
     with _conn() as c:
         if channel_handle:
