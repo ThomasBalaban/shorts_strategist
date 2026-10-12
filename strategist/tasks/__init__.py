@@ -13,6 +13,7 @@ from . import channel_scorecard
 from . import capability_gaps
 from . import pre_publish_edit_review
 from . import outcome_sync
+from . import batch_experiment_assignment
 
 REGISTRY = [
     outcome_sync,          # free (no LLM) — keep the join table fresh first
@@ -21,5 +22,6 @@ REGISTRY = [
     pre_publish_metadata,
     channel_scorecard,
     capability_gaps,
+    batch_experiment_assignment,
     pre_publish_edit_review,
 ]

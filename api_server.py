@@ -219,7 +219,13 @@ def strategy_patterns(channel_handle: str):
 
 @app.post("/experiment/design")
 def experiment_design(req: ExperimentDesignRequest):
-    raise _not_implemented("/experiment/design")
+    # Retired (MISSION Phase 4): experiment design is the thinker task
+    # batch_experiment_assignment, which fires automatically when a 10+
+    # batch fully ships. Read results via GET /experiment/list.
+    raise HTTPException(
+        status_code=410,
+        detail="Retired — experiments are assigned automatically by the "
+               "batch_experiment_assignment thinker task; see /experiment/list.")
 
 
 @app.get("/experiment/list")
