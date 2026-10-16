@@ -15,6 +15,7 @@ from . import pre_publish_edit_review
 from . import outcome_sync
 from . import batch_experiment_assignment
 from . import experiment_evaluation
+from . import effects_tuning
 
 REGISTRY = [
     outcome_sync,          # free (no LLM) — keep the join table fresh first
@@ -24,6 +25,7 @@ REGISTRY = [
     pre_publish_metadata,
     channel_scorecard,
     capability_gaps,
+    effects_tuning,       # Phase 6: fx directives from concluded experiments
     batch_experiment_assignment,
     pre_publish_edit_review,
 ]
