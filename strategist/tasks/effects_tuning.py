@@ -44,7 +44,6 @@ FX_BOUNDS: Dict[str, tuple] = {
     "fx_zoom_intensity": (0.3, 2.5),
     "fx_zoom_ramp_portion": (0.1, 0.95),
     "fx_end_card_seconds": (1.0, 4.0),
-    "fx_punch_freeze_s": (0.2, 1.5),
 }
 
 FX_DEFAULTS = {
@@ -52,7 +51,6 @@ FX_DEFAULTS = {
     "fx_trim_max_pause_s": 1.5, "fx_trim_end_within_s": 3.0,
     "fx_pre_punch_beat_s": 1.5, "fx_zoom_intensity": 1.0,
     "fx_zoom_ramp_portion": 0.6, "fx_end_card_seconds": 2.0,
-    "fx_punch_freeze_s": 0.5,
 }
 
 _PROMPT = """\
